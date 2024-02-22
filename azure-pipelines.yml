@@ -38,6 +38,8 @@ stages:
         containerRegistry: 'Container Registry Connection'
         tags: |
           $(tag)
+    - publish: '$(Build.SourcesDirectory)/manifests'
+      artifact: manifests      
 
 - stage: Deploy
   displayName: Deploy stage
@@ -47,15 +49,13 @@ stages:
     displayName: Deploy job
     pool:
       vmImage: 'ubuntu-20.04'
-    environment: 'Dev' #customize with your environment
+    environment: 'Dev' 
     strategy:
       runOnce:
         deploy:
           steps:
-          - task: DownloadPipelineArtifact@2
-            inputs:
-              artifactName: 'manifests'
-              downloadPath: '$(System.ArtifactsDirectory)/manifests'
+          - download: current
+            artifact: manifests
 
           - task: KubernetesManifest@1
             displayName: Deploy to Kubernetes cluster
