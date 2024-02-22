@@ -39,41 +39,41 @@ stages:
         tags: |
           $(tag)
 
-- stage: 'Deploy'
-  displayName: 'Deploy the containers'
+- stage: Deploy
+  displayName: Deploy stage
   dependsOn: Build
   jobs:
   - deployment: Deploy
-    displayName: Deploy
+    displayName: Deploy job
     pool:
-      vmImage: 'ubuntu-20.04'
-    environment: 'Dev'
-    variables:
-    - group: Release
+      vmImage: $(vmImageName)
+    environment: 'Dev' #customize with your environment
     strategy:
       runOnce:
         deploy:
           steps:
-          - download: current
-            artifact: manifests
-          
-            
-            
-          - task: KubernetesManifest@1
+          - task: DownloadPipelineArtifact@2
+            inputs:
+              artifactName: 'manifests'
+              downloadPath: '$(System.ArtifactsDirectory)/manifests'
+
+          - task: KubernetesManifest@0
+            displayName: Create imagePullSecret
+            inputs:
+              action: createSecret
+              secretName: $(imagePullSecret)
+              namespace: $(k8sNamespace)
+              dockerRegistryEndpoint: $(dockerRegistryServiceConnection)
+
+          - task: KubernetesManifest@0
             displayName: Deploy to Kubernetes cluster
             inputs:
               action: deploy
-              connectionType: azureResourceManager
-              azureSubscriptionConnection: 'Kubernetes Cluster Connection'
-              azureResourceGroup: 'tailspin-space-game-rg'
-              kubernetesCluster: 'tailspinspacegame-22000'
-              namespace: 'default'
+              namespace: $(k8sNamespace)
               manifests: |
-                $(Pipeline.Workspace)/manifests/deployment.yml
-                $(Pipeline.Workspace)/manifests/service.yml
+                $(System.ArtifactsDirectory)/manifests/deployment.yml
+                $(System.ArtifactsDirectory)/manifests/service.yml
               imagePullSecrets: |
                 $(imagePullSecret)
               containers: |
-                $(RegistryName)/$(webRepository):$(tag)
-                $(RegistryName)/$(leaderboardRepository):$(tag)
-
+                $(containerRegistry)/$(imageRepository):$(tag)
